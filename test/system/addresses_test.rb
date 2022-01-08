@@ -34,10 +34,10 @@ class AddressesTest < ApplicationSystemTestCase
     visit new_address_path
     within_section "New address" do
       fill_in "Line 1", with: "1384 Broadway"
-      select("Vatican City", from: "Country").then { click_on "Select country" }
+      select("Vatican City", from: "Country")
       assert_no_select "State"
 
-      select("Canada", from: "Country").then { click_on "Select country" }
+      select("Canada", from: "Country")
       assert_select "State", selected: "Alberta"
     end
 

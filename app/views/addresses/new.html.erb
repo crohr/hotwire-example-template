@@ -4,10 +4,17 @@
   <%= form_with model: @address, class: "flex flex-col gap-2" do |form| %>
     <%= render partial: "errors", object: @address.errors %>
 
-    <%= form.label :country %>
-    <%= form.select :country, @address.countries.invert %>
+    <fieldset class="contents" data-controller="element">
+      <%= form.label :country %>
+      <%= form.select :country, @address.countries.invert, {}, autocomplete: "off",
+                      data: { action: "change->element#click" } %>
 
-    <button formmethod="get" formaction="<%= new_address_path %>">Select country</button>
+      <button formmethod="get" formaction="<%= new_address_path %>" hidden
+              data-element-target="click"></button>
+      <noscript>
+        <button formmethod="get" formaction="<%= new_address_path %>">Select country</button>
+      </noscript>
+    </fieldset>
 
     <%= form.label :line_1 %>
     <%= form.text_field :line_1 %>
