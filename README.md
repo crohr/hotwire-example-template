@@ -343,3 +343,140 @@ server-rendered selection:
 ```
 
 [autocomplete="off"]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete#values
+
+## Dynamic form fields with JavaScript
+
+Now that we've made some JavaScript-free improvements, there are opportunities
+to [progressively enhance][] the experience further. We can toggle the
+`[disabled]` attribute of the "Access" `<fieldset>` element locally, without any
+communication with the server.
+
+First, we'll want to continue to support our JavaScript-free behavior, so we'll
+nest the `<button formmethod="get">` within a [`<noscript>` element][noscript].
+Descendants of `<noscript>` elements are present JavaScript is unavailable to
+the browser, and ignored otherwise:
+
+[noscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/noscript
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+       <%= form.collection_radio_buttons :access, Document.accesses.keys, :to_s, :humanize do |builder| %>
+         <span>
+           <%= builder.radio_button autocomplete: "off" %>
+           <%= builder.label %>
+         </span>
+       <% end %>
+
++      <noscript>
+         <button formmethod="get" formaction="<%= new_document_path %>">Select access</button>
++      </noscript>
+     <% end %>
+```
+
+We'll create our application's first [Stimulus Controller][] to [progressively
+enhance][] the experience. The controller will use `fields` as its
+[identifier][]. We'll modify our `<form>` element so that it declares the
+`[data-controller]` attribute with the `fields` token:
+
+[progressively enhance]: https://developer.mozilla.org/en-US/docs/Glossary/Progressive_Enhancement
+[Stimulus Controller]: https://stimulus.hotwired.dev/handbook/hello-stimulus#controllers-bring-html-to-life
+[identifier]: https://stimulus.hotwired.dev/reference/controllers#identifiers
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+-  <%= form_with model: @document do |form| %>
++  <%= form_with model: @document, data: { controller: "fields" } do |form| %>
+     <%= render partial: "errors", object: @document.errors %>
+
+     <%= field_set_tag "Access" do %>
+```
+
+To listen for changes in selection, we'll route [input][] events to our `fields`
+controller by annotating each `<input type="radio">` element with the
+`[data-action="input->fields#enable"]` attribute:
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+     <%= field_set_tag "Access" do %>
+       <%= form.collection_radio_buttons :access, Document.accesses.keys, :to_s, :humanize do |builder| %>
+         <span>
+-          <%= builder.radio_button autocomplete: "off" %>
++          <%= builder.radio_button autocomplete: "off",
++                                   aria: { controls: form.field_id(:access, builder.value, :fieldset) },
++                                   data: { action: "input->fields#enable" } %>
+           <%= builder.label %>
+         </span>
+       <% end %>
+     <% end %>
+```
+
+The `[data-action]` attribute's value is a [Stimulus Action][] descriptor, which
+instructs Stimulus on how to respond to `input` events that fire within the
+document.
+
+[input]: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/input_event
+[Stimulus Action]: https://stimulus.hotwired.dev/reference/actions
+
+The `fields#enable` implementation reads the `<input type="radio">` element's
+[name][] and [aria-controls][] attributes and finds `<fieldset>` elements with
+corresponding attributes. We'll mark each `<fieldset>` with the
+[disabled][fieldset-disabled], then remove the attribute for the `<fieldset>`
+whose `[name]` matches the `<input type="radio">` element's `[name]`, and whose
+`[id]` matches the `<input type="radio">` element's `[aria-controls]`:
+
+[name]:https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attr-name
+[aria-controls]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-controls
+
+```javascript
+// app/javascript/controllers/fields_controller.js
+
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  enable({ target }) {
+    const elements = Array.from(this.element.elements)
+    const selectedElements = [ target ]
+
+    for (const element of elements.filter(element => element.name == target.name)) {
+      if (element instanceof HTMLFieldSetElement) element.disabled = true
+    }
+
+    for (const element of controlledElements(...selectedElements)) {
+      if (element instanceof HTMLFieldSetElement) element.disabled = false
+    }
+  }
+}
+
+function controlledElements(...selectedElements) {
+  return selectedElements.flatMap(selectedElement =>
+    getElementsByTokens(selectedElement.getAttribute("aria-controls"))
+  )
+}
+
+function getElementsByTokens(tokens) {
+  const ids = (tokens ?? "").split(/\s+/)
+
+  return ids.map(id => document.getElementById(id))
+}
+```
+
+To ensure the relationship between the `<input type="radio">` elements and their
+corresponding `<fieldset>` elements, we'll update our `documents/new` template
+to encode those values during rendering:
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+-    <%= field_set_tag "Passcode protect", disabled: !@document.passcode_protect?, class: "disabled:hidden" do %>
++    <%= field_set_tag "Passcode protect", disabled: !@document.passcode_protect?, class: "disabled:hidden",
++                                id: form.field_id(:access, :passcode_protected, :fieldset),
++                                name: form.field_name(:access) do %>
+       <%= form.label :passcode %>
+       <%= form.text_field :passcode %>
+     <% end %>
+```
+
+https://user-images.githubusercontent.com/2575027/150658649-45b9aa1d-fe28-4a71-8772-0fb9c4502640.mov
