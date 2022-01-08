@@ -10,7 +10,7 @@
                       data: { action: "change->element#click" } %>
 
       <button formmethod="get" formaction="<%= new_address_path %>" hidden
-              data-element-target="click"></button>
+              data-element-target="click" data-turbo-frame="<%= form.field_id(:state, :turbo_frame) %>"></button>
       <noscript>
         <button formmethod="get" formaction="<%= new_address_path %>">Select country</button>
       </noscript>
@@ -25,10 +25,12 @@
     <%= form.label :city %>
     <%= form.text_field :city %>
 
-    <% if @address.states.any? %>
-      <%= form.label :state %>
-      <%= form.select :state, @address.states.invert %>
-    <% end %>
+    <turbo-frame id="<%= form.field_id(:state, :turbo_frame) %>" class="contents">
+      <% if @address.states.any? %>
+        <%= form.label :state %>
+        <%= form.select :state, @address.states.invert %>
+      <% end %>
+    </turbo-frame>
 
     <%= form.label :postal_code %>
     <%= form.text_field :postal_code %>

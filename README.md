@@ -460,3 +460,78 @@ initial client-side selection and the server-rendered selection:
 ```
 
 https://user-images.githubusercontent.com/2575027/150692642-39273c3c-370d-468a-aa5a-49b9cbac1120.mov
+
+## Fetching data with Turbo Frames
+
+While we've enhanced our JavaScript-free solution for maintaining
+synchronization between the "Country" and "State" `<select>` elements, there are
+still some quirks to improve.
+
+For example, because the `<form>` submission triggers a full-page navigation,
+our application will discard any client-side state like, which element has focus
+or how far down the page the end-user has scrolled. Ideally, a change to the
+"Country" `<select>` element's current option would fetch and replace an HTML
+fragment that _only_ contained the "State" `<select>` element, and left the rest
+of the page undisturbed.
+
+Lucky for us, [Turbo Frames][] are well suited for that purpose! Through the
+[`<turbo-frame>`][] custom element (and its [src][turbo-frame-src] attribute),
+our application can manage fragments of our document asynchronously.
+
+We can scope our "Country" `<select>`-driven requests the portion of our from that contains the "State" `<select>` and `<label>` elements.
+
+First, we'll wrap the "State" portion of the form in a
+[`<turbo-frame>`][turbo-frame] element, and assign it an `[id]` attribute that
+is unique across the document:
+
+[Turbo Frames]: https://turbo.hotwired.dev/handbook/frames
+[turbo-frame]: https://turbo.hotwired.dev/reference/frames#basic-frame
+[turbo-frame-src]: https://turbo.hotwired.dev/reference/frames#html-attributes
+[FrameElement]: https://turbo.hotwired.dev/reference/frames#properties
+[data-turbo-frame]: https://turbo.hotwired.dev/handbook/frames#targeting-navigation-into-or-out-of-a-frame
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
++    <turbo-frame id="<%= form.field_id(:state, :turbo_frame) %>" class="contents">
+       <% if @address.states.any? %>
+         <%= form.label :state %>
+         <%= form.select :state, @address.states.invert %>
+       <% end %>
++    </turbo-frame>
+```
+
+There are several ways to navigate the frame. For example, if it better suits
+your use-case, you can retrieve the [FrameElement][] instance, and interact with
+the `[src]` property directly.
+
+Since we're already rendering an `<input type="submit">` element that
+declaratively encodes all the pertinent, concrete details of the submission (for
+example, the `[formmethod]` and `[formaction]` attributes), we'll rely on the
+fact that we're programmatically clicking the `<input type="submit">` element.
+
+Not only does the `<input type="submit">` encode _where_ and _how_ to make our
+submission, the browser's built-in form field encoding mechanisms to control
+_what_ to include in the submission.
+
+To target and drive the `<turbo-frame>` element, we'll render the `<input
+type="submit">` element with a [data-turbo-frame][] attribute that references
+the `<turbo-frame>` element's `[id]` attribute:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+       <button formmethod="get" formaction="<%= new_address_path %>" hidden
+-              data-element-target="click"></button>
++              data-element-target="click" data-turbo-frame="<%= form.field_id(:state, :turbo_frame) %>"></button>
+       <noscript>
+         <button formmethod="get" formaction="<%= new_address_path %>">Select country</button>
+       </noscript>
+```
+
+With those enhancements in place, changes to the "Country" `<select>` element
+refreshes the "State" `<select>` element's collection of options while
+retaining client-side state like which element is focused (in this case, the
+"Country" `<select>` _retains_ focus throughout):
+
+https://user-images.githubusercontent.com/2575027/150692695-a9cc60c7-0fbf-4e52-8dd9-a9b8950f8210.mov
