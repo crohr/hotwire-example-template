@@ -480,3 +480,45 @@ to encode those values during rendering:
 ```
 
 https://user-images.githubusercontent.com/2575027/150658649-45b9aa1d-fe28-4a71-8772-0fb9c4502640.mov
+
+### Supporting other form fields
+
+While `<input type="radio">` elements are an appropriate choice for our set of
+three possible choices, it's worthwhile to consider how we might handle a larger
+set of choices. A natural progression might involve replacing the `<input
+type="radio">` buttons with a `<select>`:
+
+```erb
+<%= field_set_tag do %>
+  <%= form.label :access %>
+  <%= form.select :access, {}, {}, autocomplete: "off",
+                  data: { action: "change->fields#enable" } do %>
+    <% Document.accesses.keys.each do |value| %>
+      <%= tag.option value.humanize, value: value,
+                                    aria: { controls: form.field_id(:access, value, :fieldset) } %>
+    <% end %>
+  <% end %>
+<% end %>
+```
+
+Although our `<select>` is limited to a single choice at a time, it's possible
+for a `<select>` to have multiple "selected" options. We'll want to account for
+that possibility in the `fields` controller:
+
+```diff
+--- a/app/javascript/controllers/fields_controller.js
++++ b/app/javascript/controllers/fields_controller.js
+@@ -2,7 +2,9 @@ import { Controller } from "@hotwired/stimulus"
+
+ export default class extends Controller {
+   enable({ target }) {
+-    const selectedElements = [ target ]
++    const selectedElements = "selectedOptions" in target ?
++      target.selectedOptions :
++      [ target ]
+
+     for (const field of this.element.elements.namedItem(target.name)) {
+       if (field instanceof HTMLFieldSetElement) field.disabled = true
+```
+
+https://user-images.githubusercontent.com/2575027/150658732-bb552dc2-4f25-4f26-b33b-ca539da6ac4b.mov
