@@ -522,3 +522,11 @@ that possibility in the `fields` controller:
 ```
 
 https://user-images.githubusercontent.com/2575027/150658732-bb552dc2-4f25-4f26-b33b-ca539da6ac4b.mov
+
+## Wrapping up
+
+We were able to progressively enhance while keeping all the details of our
+requests declaratively encoded into the document's HTML.
+
+Regardless of the situations constraints, we should start our problem solving
+with the help of browsers' built-in, HTML Specification-compliant features.
