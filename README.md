@@ -173,3 +173,173 @@ database, and the controller serves an [HTTP redirect response][redirect] to the
 `documents#show` route.
 
 [redirect]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections
+
+## Dynamic form fields without JavaScript
+
+Our starting point serves as a solid, reliable, and robust foundation. The
+"moving parts" are kept to a minimum. The form collects information with or
+without the presence of a JavaScript-capable browsing environment.
+
+However, always rendering the "passcode" field, regardless of the currently
+selected "access" level isn't interactive, and could lead to a confusing
+end-user experience. To improve on that experience, we'll need to introduce a
+mechanism that hides and ignores any "passcode" values when the Document is has
+"publish" or "draft" access.
+
+We can use the `<fieldset>` element's [disabled][fieldset-disabled] attribute to
+control whether or not its descendant fields are encoded into the request and
+transmitted to the server when the `<form>` is submitted.
+
+The `[disabled]` attribute is a [boolean attribute][], so its presence alone is
+enough to omit the element and its descendants. We'll base the presence or
+absence on whether or not the `Document` record's "access" level is "passcode
+protect":
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+-    <%= field_set_tag "Passcode protected" do %>
++    <%= field_set_tag "Passcode protect", disabled: !@document.passcode_protect? do %>
+       <%= form.label :passcode %>
+       <%= form.text_field :passcode %>
+     <% end %>
+```
+
+Encoding the `[disabled]` attribute into the HTML affords an opportunity to
+apply specific styles to the `<fieldset>` when it matches the [:disabled][]
+pseudo-class. For example, when the `<fieldset>` is disabled, apply the
+[display: none][] rule:
+
+```diff
+-    <%= field_set_tag "Passcode protect", disabled: !@document.passcode_protect? do %>
++    <%= field_set_tag "Passcode protect", disabled: !@document.passcode_protect?, class: "disabled:hidden" do %>
+       <%= form.label :passcode %>
+       <%= form.text_field :passcode %>
+     <% end %>
+```
+
+[fieldset-disabled]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/fieldset#attr-disabled
+[boolean attribute]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes#boolean_attributes
+[:disabled]: https://developer.mozilla.org/en-US/docs/Web/CSS/:disabled
+[display: none]: https://developer.mozilla.org/en-US/docs/Web/CSS/display#box
+
+Since our servers are responsible for rendering the page's HTML, rendering HTML
+in response to a client-side change to the "access" level requires communicating
+with the server. How might we fetch and render new HTML from the server without
+using [XMLHttpRequest][], [fetch][], or any JavaScript at all?
+
+[XMLHttpRequest]: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+[fetch]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+
+### Fetching remote data without JavaScript
+
+Browsers provide a built-in mechanism to submit HTTP requests without JavaScript
+code: `<form>` elements. By clicking `<button>` and `<input type="submit">`
+elements, end-users submit `<form>` elements and issue HTTP requests. What's
+more, those `<button>` elements are capable of overriding _where_ and _how_ that
+`<form>` element transmits its submission by through their [formmethod][] and
+[formaction][] attributes.
+
+We'll change pair "Access" group of `<input type="radio">` elements with a
+"Select access" button keep the page's HTML and the current selection in-sync:
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+     <%= field_set_tag "Access" do %>
+       <%= form.collection_radio_buttons :access, Document.accesses.keys, :to_s, :humanize do |builder| %>
+         <span>
+           <%= builder.radio_button %>
+           <%= builder.label %>
+         </span>
+       <% end %>
++      <button formmethod="get" formaction="<%= new_document_path %>">Select access</button>
+     <% end %>
+```
+
+The `<button>` element's `[formmethod="get"]` attribute directs the `<form>` to
+submit as an [HTTP GET][] request and the `[formaction="/documents/new"]`
+attribute directs the `<form>` to submit to the `/documents/new` path. This
+verb-path pairing might seem familiar: it's the same request our browser will
+make when we visit the current page.
+
+Submitting `<form>` as a `GET` request encodes all the fields' values into [URL
+parameters][]. We can read those values in the `documents#new` action whenever
+they're provided, and use them when rendering the `<form>` element and its
+fields:
+
+```diff
+--- a/app/controllers/documents_controller.rb
++++ b/app/controllers/documents_controller.rb
+ class DocumentsController < ApplicationController
+   def new
+-    @document = Document.new
++    @document = Document.new document_params
+   end
+
+   def create
+@@ -20,7 +20,7 @@ class DocumentsController < ApplicationController
+   private
+
+   def document_params
+-    params.require(:document).permit(
++    params.fetch(:document, {}).permit(
+       :access,
+       :passcode,
+       :content,
+```
+
+While rendering the `documents#new` template, the controller will determine the
+presence or absence of the attribute based on whether or not an "access" level
+is encoded into the request's URL parameters used to construct the `Document`
+instance.
+
+https://user-images.githubusercontent.com/2575027/150658326-72a0a8e6-c131-41c6-a364-e049d6f7f982.mov
+
+Submitting the form's values as query parameters comes with two caveats:
+
+1.  Any selected `<input type="file">` values will be discarded
+
+2.  according to the [HTTP specification][], there are no limits on the length of
+    a URI:
+
+    > The HTTP protocol does not place any a priori limit on the length of
+    > a URI. Servers MUST be able to handle the URI of any resource they
+    > serve, and SHOULD be able to handle URIs of unbounded length if they
+    > provide GET-based forms that could generate such URIs.
+    >
+    > - 3.2.1 General Syntax
+
+    Unfortunately, in practice, [conventional wisdom][] suggests that URLs over
+    2,000 characters are risky.
+
+In the case of our simple example `<form>`, neither points pose any risk.
+
+[HTTP specification]: https://tools.ietf.org/html/rfc2616#section-3.2.1
+[conventional wisdom]: https://stackoverflow.com/a/417184
+[URL parameters]: https://developer.mozilla.org/en-US/docs/Learn/Common_questions/What_is_a_URL#parameters
+[formmethod]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attr-formmethod
+[formaction]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attr-formaction
+[HTTP GET]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET
+
+Finally, it's important to render the `<input type="radio">` elements with
+[autocomplete="off"][] so that browser-initiated optimizations don't introduce
+inconsistencies between the initial client-side selection and the
+server-rendered selection:
+
+```diff
+--- a/app/views/documents/new.html.erb
++++ b/app/views/documents/new.html.erb
+     <%= field_set_tag "Access" do %>
+       <%= form.collection_radio_buttons :access, Document.accesses.keys, :to_s, :humanize do |builder| %>
+         <span>
+-          <%= builder.radio_button %>
++          <%= builder.radio_button autocomplete: "off" %>
+           <%= builder.label %>
+         </span>
+       <% end %>
+       <button formmethod="get" formaction="<%= new_document_path %>">Select access</button>
+     <% end %>
+```
+
+[autocomplete="off"]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete#values
