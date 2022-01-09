@@ -45,4 +45,12 @@ class AddressesTest < ApplicationSystemTestCase
       assert_field "Line 1", with: "1384 Broadway"
     end
   end
+
+  test "renders the estimated arrival time based on the country" do
+    visit new_address_path
+
+    select("United States", from: "Country").then { assert_text "Estimated arrival: 8 months from now." }
+    select("Canada", from: "Country").then        { assert_text "Estimated arrival: about 1 month from now." }
+    select("Albania", from: "Country").then       { assert_text "Estimated arrival: 5 days from now." }
+  end
 end

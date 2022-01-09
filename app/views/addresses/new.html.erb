@@ -1,6 +1,8 @@
 <section class="w-full max-w-lg">
   <h1>New address</h1>
 
+  <%= render partial: "addresses/address", object: @address %>
+
   <%= form_with model: @address, class: "flex flex-col gap-2" do |form| %>
     <%= render partial: "errors", object: @address.errors %>
 
@@ -30,6 +32,7 @@
         <%= form.label :state %>
         <%= form.select :state, @address.states.invert %>
       <% end %>
+      <%= turbo_stream.replace dom_id(@address), partial: "addresses/address", object: @address %>
     </turbo-frame>
 
     <%= form.label :postal_code %>

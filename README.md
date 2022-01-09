@@ -626,4 +626,109 @@ export default class extends Controller {
 ```
 
 With those changes in place, the `<a>` element's `[href]` attribute only encodes
-the pertinent values (e.g. `/buildings/new?building%5Bcountry%5D=US`).
+the pertinent values (e.g. `/addresses/new?address%5Bcountry%5D=US`).
+
+## Rendering with Turbo Streams
+
+To push our feature set one step further, imagine if our form needed to include
+a server-side calculation that factored-in the `Building` record's Country (for
+example, an estimated arrival date).
+
+How might we incorporate a new piece of dynamic data into our existing set of
+enhancements?
+
+Consider a `addresses/address` view partial to surface our server-side
+calculation:
+
+```erb
+<%# app/views/addresses/_address.html.erb %>
+
+<div id="<%= dom_id(address) %>">
+  <p>Estimated arrival: <%= distance_of_time_in_words_to_now address.estimated_arrival_on %> from now.</p>
+</div>
+```
+
+We'll render the partial at the top of the page, as a sibling to the
+`<form>` element:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+   <h1>New address</h1>
+
++  <%= render partial: "addresses/address", object: @address %>
++
+   <%= form_with model: @address, class: "flex flex-col gap-2" do |form| %>
+     <%= render partial: "errors", object: @address.errors %>
+```
+
+Unfortunately, since the changes to the page are constrained to the
+`<turbo-frame>` element that contains the "State" `<select>`, the estimated
+arrival text will be incorrect whenever the client-side "Country" selection
+changes.
+
+While it might be tempting to reach for [XMLHttpRequest][] or [fetch][] to
+refresh the data, there's an opportunity to utilize another Turbo-provided
+custom element: the [`<turbo-stream>`][turbo-stream].
+
+Most of the fanfare for Turbo Streams is in in the context of Web Socket
+broadcasts or Form Submissions. While Turbo Streams can be extremely useful in
+those situations, the `<turbo-stream>` element can be rendered directly into the
+document like any other HTML element. We'll leverage that fact by rendering a
+`<turbo-stream>` element within our "States" `<turbo-frame>` element.
+
+[turbo-stream]: https://turbo.hotwired.dev/handbook/streams#stream-messages-and-actions
+
+We'll rely on the content refresh mechanisms we've been constructing thus far to
+drive the `<turbo-frame>` element. When the `<turbo-frame>` "navigates" and
+fetches new content, that content will include a `<turbo-stream>` element that
+encodes an operation to modify the content of the document.
+
+We'll render a declarative [Element.replaceWith()][] command as a
+`<turbo-stream>` element through the [action="replace"][] attribute, and we'll
+nest the new document fragment within a [`<template>`][template] element:
+
+[replaceWith]: https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceWith
+[template]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+         <%= form.label :state %>
+         <%= form.select :state, @address.states.invert %>
+       <% end %>
++      <turbo-stream target="<%= dom_id(@address) %>" action="replace">
++        <template><%= render partial: "addresses/address", object: @address %></template>
++      </turbo-stream>
+     </turbo-frame>
+```
+
+Since the contents of the `<turbo-stream>` element's nested `<template>` renders
+the `addresses/address` partial, we can replace the HTML version with a call to
+the [`turbo_stream.replace`][turbo_stream_helper] provided by Turbo Rails:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+         <%= form.label :state %>
+         <%= form.select :state, @address.states.invert %>
+       <% end %>
+-      <turbo-stream target="<%= dom_id(@address) %>" action="replace">
+-        <template><%= render partial: "addresses/address", object: @address %></template>
+-      </turbo-stream>
++      <%= turbo_stream.replace dom_id(@address), partial: "addresses/address", object: @address %>
+     </turbo-frame>
+```
+
+With that change in place, driving the `<turbo-frame>` element replaces its own
+content with a new set of "State" options, _and_ it replaces content elsewhere
+in the document, all without discarding other client-side state like focus or
+scroll:
+
+https://user-images.githubusercontent.com/2575027/150692784-0e8082a9-adb4-4c26-b95a-40e8b3d0da3c.mov
+
+[action="replace"]: https://turbo.hotwired.dev/reference/streams#replace
+[XMLHttpRequest]: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+[fetch]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[Custom Element]: https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements
+[turbo_stream_helper]: https://github.com/hotwired/turbo-rails/blob/v1.0.0/app/models/turbo/streams/tag_builder.rb#L53-L61
