@@ -161,3 +161,161 @@ Entity][422].
 
 [422]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422
 [redirect]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections
+
+## Interactivity and dynamic options
+
+Our starting point serves as a solid, reliable, and robust foundation. The
+"moving parts" are kept to a minimum. The form collects information with or
+without the presence of a JavaScript-capable browsing environment.
+
+With that being said, there is still an opportunity to improve the end-user
+experience. We'll start with a JavaScript-free baseline, then we'll
+progressively the form, adding dynamism and improving its interactivity along
+the way.
+
+To start, let's support `Address` record in Countries outside the United
+States. We'll add a `<select>` to our provide end-users with a collection of
+Country options:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+   <%= form_with model: @address, class: "flex flex-col gap-2" do |form| %>
+     <%= render partial: "errors", object: @address.errors %>
+
++    <%= form.label :country %>
++    <%= form.select :country, @address.countries.invert %>
++
+     <%= form.label :line_1 %>
+```
+
+Along with the new field, we'll add a matching key name to the
+`AddresssController#address_params` implementation to read the new value from
+a submission's parameters:
+
+```diff
+--- a/app/controllers/addresses_controller.rb
++++ b/app/controllers/addresses_controller.rb
+@@ -20,7 +20,8 @@ class AddressesController < ApplicationController
+   private
+
+   def address_params
+     params.require(:address).permit(
++      :country,
+       :line_1,
+       :line_2,
+       :city,
+```
+
+While the new `<select>` provides an opportunity to pick a different Country,
+that choice won't be reflected in the `<form>` element's collection of States.
+
+What tools do we have at our disposal to synchronize the "States" `<select>`
+with what's chosen in the "Countries" `<select>`? How might we fetch new
+`<select>` and `<option>` elements from the server without without using
+[XMLHttpRequest][], [fetch][], or any JavaScript at all?
+
+[XMLHttpRequest]: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+[fetch]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+
+### Fetching data without JavaScript
+
+Browsers provide a built-in mechanism to submit HTTP requests without JavaScript
+code: `<form>` elements. By clicking `<button>` and `<input type="submit">`
+elements, end-users submit `<form>` elements and issue HTTP requests. What's
+more, those `<button>` elements are capable of overriding _where_ and _how_ that
+`<form>` element transmits its submission by through their [formmethod][] and
+[formaction][] attributes.
+
+We'll change our `<form>` to present a "Select country" `<button>` element to
+refresh the page's "State" options:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
+     <%= form.label :country %>
+     <%= form.select :country, @address.countries.invert %>
++
++    <button formmethod="get" formaction="<%= new_address_path %>">Select country</button>
+```
+
+The `<button>` element's `[formmethod="get"]` attribute directs the `<form>` to
+submit as an [HTTP GET][] request and the `[formaction="/addresses/new"]`
+attribute directs the `<form>` to submit to the `/addresses/new` path. This
+verb-path pairing might seem familiar: it's the same request our browser will
+make when we visit the current page.
+
+Submitting `<form>` as a `GET` request will encode all of the fields' values
+into [URL parameters][]. We can read those values in our `addresses#new` action
+whenever they're provided, and use them when rendering the `<form>` element and
+its fields:
+
+```diff
+--- a/app/controllers/addresses_controller.rb
++++ b/app/controllers/addresses_controller.rb
+ class AddresssController < ApplicationController
+   def new
+-    @address = Address.new
++    @address = Address.new address_params
+   end
+
+   def create
+@@ -20,7 +20,7 @@ class AddresssController < ApplicationController
+   private
+
+   def address_params
+-    params.require(:address).permit(
++    params.fetch(:address, {}).permit(
+       :country,
+       :line_1,
+       :line_2,
+       :city,
+       :state,
+       :postal_code,
+     )
+   end
+ end
+```
+
+https://user-images.githubusercontent.com/2575027/150692412-47d523dd-b4c6-4e1c-9324-909a8bff4f4c.mov
+
+It's worth noting that there are countries that don't have "State" options (like
+Vatican City), so we'll also want to account for that case in our
+`addresses/new` template:
+
+```diff
+--- a/app/views/addresses/new.html.erb
++++ b/app/views/addresses/new.html.erb
++    <% if @address.states.any? %>
+       <%= form.label :state %>
+       <%= form.select :state, @address.states.invert %>
++    <% end %>
+```
+
+https://user-images.githubusercontent.com/2575027/150692444-f69bc3c1-5366-4a66-a398-f273e90b2a8d.mov
+
+Submitting the form's values as query parameters comes with two caveats:
+
+1.  Any selected `<input type="file">` values will be discarded
+
+2.  according to the [HTTP specification][], there are no limits on the length of
+    a URI:
+
+    > The HTTP protocol does not place any a priori limit on the length of
+    > a URI. Servers MUST be able to handle the URI of any resource they
+    > serve, and SHOULD be able to handle URIs of unbounded length if they
+    > provide GET-based forms that could generate such URIs.
+    >
+    > - 3.2.1 General Syntax
+
+    Unfortunately, in practice, [conventional wisdom][] suggests that URLs over
+    2,000 characters are risky.
+
+In the case of our simple example `<form>`, neither points pose any risk.
+
+[HTTP specification]: https://tools.ietf.org/html/rfc2616#section-3.2.1
+[conventional wisdom]: https://stackoverflow.com/a/417184
+[URL parameters]: https://developer.mozilla.org/en-US/docs/Learn/Common_questions/What_is_a_URL#parameters
+[formmethod]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attr-formmethod
+[formaction]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#attr-formaction
+[HTTP GET]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET
