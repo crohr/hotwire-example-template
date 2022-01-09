@@ -732,3 +732,21 @@ https://user-images.githubusercontent.com/2575027/150692784-0e8082a9-adb4-4c26-b
 [fetch]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [Custom Element]: https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements
 [turbo_stream_helper]: https://github.com/hotwired/turbo-rails/blob/v1.0.0/app/models/turbo/streams/tag_builder.rb#L53-L61
+
+## Wrapping up
+
+We were able to progressively enhance while keeping all the details of our
+requests declaratively encoded into the document's HTML.
+
+While our example never called for us to make [XMLHttpRequest][] or [fetch][]
+requests directly, there might be situations that arise that require more
+bespoke JavaScript. For example, it might behoove us to synthesize a `<form>`
+element outside the scope of the current `<form>` in the same way as
+`@rails/ujs`-powered [remote fields][], or we might want to encode a subset of a
+`<form>` element's values into a URL's [searchParams][] instance.
+
+Regardless of the situations constraints, we should start our problem solving
+with the help of browsers' built-in, HTML Specification-compliant features.
+
+[remote fields]: https://guides.rubyonrails.org/working_with_javascript_in_rails.html#data-url-and-data-params
+[searchParams]: https://developer.mozilla.org/en-US/docs/Web/API/URL/searchParams
