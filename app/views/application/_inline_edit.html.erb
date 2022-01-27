@@ -1,0 +1,14 @@
+<% form_id = "#{method}_form" %>
+
+<%= turbo_frame_tag dom_id(model, method) do %>
+  <%= yield %>
+
+  <%= link_to edit_polymorphic_path(model, form: dom_id(model, form_id)) do %>
+    Edit <span class="sr-only"><%= model.class.human_attribute_name(method) %></span>
+  <% end %>
+<% end %>
+
+<%= form_with model: model, html: { id: dom_id(model, form_id) },
+                            data: { turbo_frame: dom_id(model, method) } do |form| %>
+  <%= form.hidden_field :form, value: form.id %>
+<% end %>

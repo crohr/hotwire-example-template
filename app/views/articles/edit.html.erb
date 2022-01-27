@@ -1,54 +1,56 @@
-<%= form_with model: @article do |form| %>
-  <%= render layout: "articles/article", object: @article do |partial| %>
-    <% partial.content_for :name do %>
-      <%= form.label :name %>
-      <%= form.text_field :name %>
+<%= form_with model: @article, html: { id: params.fetch(:form, dom_id(@article, :form)) } do |form| %>
+  <%= form.hidden_field :form, value: form.id %>
 
-      <%= form.button %>
+  <%= render layout: "articles/article", object: @article do |partial| %>
+    <% partial.inline_edit_fields model: @article, method: :name do %>
+      <%= form.label :name %>
+      <%= form.text_field :name, form: form.id %>
+
+      <%= form.button form: form.id %>
     <% end %>
 
     <% partial.content_for :action do %>
       <%= link_to "Back", article_path(@article) %>
     <% end %>
 
-    <% partial.content_for :category_ids do %>
+    <% partial.inline_edit_fields model: @article, method: :category_ids do %>
       <fieldset>
         <legend>
           <%= @article.class.human_attribute_name(:category_ids) %>
         </legend>
 
         <%= form.collection_check_boxes :category_ids, Category.all, :id, :name do |builder| %>
-          <%= builder.check_box %>
+          <%= builder.check_box form: form.id %>
           <%= builder.label %>
         <% end %>
 
-        <%= form.button %>
+        <%= form.button form: form.id %>
       </fieldset>
     <% end %>
 
-    <% partial.content_for :byline do %>
+    <% partial.inline_edit_fields model: @article, method: :byline do %>
       <%= form.label :byline %>
-      <%= form.text_field :byline %>
+      <%= form.text_field :byline, form: form.id %>
 
-      <%= form.button %>
+      <%= form.button form: form.id %>
     <% end %>
 
-    <% partial.content_for :published_on do %>
+    <% partial.inline_edit_fields model: @article, method: :published_on do %>
       <%= form.label :published_on %>
-      <%= form.date_field :published_on %>
+      <%= form.date_field :published_on, form: form.id %>
 
-      <%= form.button %>
+      <%= form.button form: form.id %>
 
-      <%= form.button :published_on, value: nil do %>
+      <%= form.button :published_on, value: nil, form: form.id do %>
         Unpublish
       <% end %>
     <% end %>
 
-    <% partial.content_for :content do %>
+    <% partial.inline_edit_fields model: @article, method: :content do %>
       <%= form.label :content %>
-      <%= form.rich_text_area :content %>
+      <%= form.rich_text_area :content, form: form.id %>
 
-      <%= form.button %>
+      <%= form.button form: form.id %>
     <% end %>
   <% end %>
 <% end %>

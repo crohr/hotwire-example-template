@@ -5,7 +5,13 @@
     if content_for? method
       content_for method
     else
-      capture(&block)
+      render "application/inline_edit", model: model, method: method, &block
+    end
+  end
+
+  def inline_edit_fields(model:, method:, &block)
+    content_for method do
+      render "application/inline_fields", model: model, method: method, &block
     end
   end
 end %>
@@ -19,13 +25,15 @@ end %>
     <% end %>
   </h1>
 
-  <aside>
-    <% if partial.content_for? :action %>
-      <%= partial.content_for :action %>
-    <% else %>
-      <%= link_to "Edit", edit_article_path(article) %>
-    <% end %>
-  </aside>
+  <noscript>
+    <aside>
+      <% if partial.content_for? :action %>
+        <%= partial.content_for :action %>
+      <% else %>
+        <%= link_to "Edit", edit_article_path(article) %>
+      <% end %>
+    </aside>
+  </noscript>
 
   <div>
     <%= partial.inline_edit_with model: article, method: :published_on do %>
