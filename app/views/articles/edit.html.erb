@@ -3,7 +3,7 @@
 
   <%= render layout: "articles/article", object: @article do |partial| %>
     <% partial.inline_edit_fields model: @article, method: :name do %>
-      <%= form.label :name %>
+      <%= form.label :name, class: "sr-only" %>
       <%= form.text_field :name, form: form.id %>
 
       <%= form.button form: form.id %>
@@ -29,14 +29,14 @@
     <% end %>
 
     <% partial.inline_edit_fields model: @article, method: :byline do %>
-      <%= form.label :byline %>
+      <%= form.label :byline, class: "sr-only" %>
       <%= form.text_field :byline, form: form.id %>
 
       <%= form.button form: form.id %>
     <% end %>
 
     <% partial.inline_edit_fields model: @article, method: :published_on do %>
-      <%= form.label :published_on %>
+      <%= form.label :published_on, class: "sr-only" %>
       <%= form.date_field :published_on, form: form.id %>
 
       <%= form.button form: form.id %>
@@ -47,7 +47,7 @@
     <% end %>
 
     <% partial.inline_edit_fields model: @article, method: :content do %>
-      <%= form.label :content %>
+      <%= form.label :content, class: "sr-only" %>
       <%= form.rich_text_area :content, form: form.id %>
 
       <%= form.button form: form.id %>
