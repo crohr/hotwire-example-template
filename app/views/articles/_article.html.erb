@@ -1,0 +1,60 @@
+<% partial = np %>
+
+<% partial.helpers do
+  def inline_edit_with(model:, method:, &block)
+    if content_for? method
+      content_for method
+    else
+      capture(&block)
+    end
+  end
+end %>
+
+<% yield partial %>
+
+<article id="<%= dom_id(article) %>" class="grid gap-2">
+  <h1>
+    <%= partial.inline_edit_with model: article, method: :name do %>
+      <%= article.name %>
+    <% end %>
+  </h1>
+
+  <aside>
+    <% if partial.content_for? :action %>
+      <%= partial.content_for :action %>
+    <% else %>
+      <%= link_to "Edit", edit_article_path(article) %>
+    <% end %>
+  </aside>
+
+  <div>
+    <%= partial.inline_edit_with model: article, method: :published_on do %>
+      <% if article.published_on.nil? %>
+        (Unpublished)
+      <% else %>
+        <%= localize article.published_on, format: :short %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div>
+    <%= partial.inline_edit_with model: article, method: :category_ids do %>
+      <div>Categories</div>
+
+      <% article.categories.each do |category| %>
+        <span><%= category.name %></span>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div>
+    By:
+    <%= partial.inline_edit_with model: article, method: :byline do %>
+      <%= article.byline %>
+    <% end %>
+  </div>
+
+  <%= partial.inline_edit_with model: article, method: :content do %>
+    <%= article.content %>
+  <% end %>
+</article>

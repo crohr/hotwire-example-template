@@ -1,0 +1,54 @@
+<%= form_with model: @article do |form| %>
+  <%= render layout: "articles/article", object: @article do |partial| %>
+    <% partial.content_for :name do %>
+      <%= form.label :name %>
+      <%= form.text_field :name %>
+
+      <%= form.button %>
+    <% end %>
+
+    <% partial.content_for :action do %>
+      <%= link_to "Back", article_path(@article) %>
+    <% end %>
+
+    <% partial.content_for :category_ids do %>
+      <fieldset>
+        <legend>
+          <%= @article.class.human_attribute_name(:category_ids) %>
+        </legend>
+
+        <%= form.collection_check_boxes :category_ids, Category.all, :id, :name do |builder| %>
+          <%= builder.check_box %>
+          <%= builder.label %>
+        <% end %>
+
+        <%= form.button %>
+      </fieldset>
+    <% end %>
+
+    <% partial.content_for :byline do %>
+      <%= form.label :byline %>
+      <%= form.text_field :byline %>
+
+      <%= form.button %>
+    <% end %>
+
+    <% partial.content_for :published_on do %>
+      <%= form.label :published_on %>
+      <%= form.date_field :published_on %>
+
+      <%= form.button %>
+
+      <%= form.button :published_on, value: nil do %>
+        Unpublish
+      <% end %>
+    <% end %>
+
+    <% partial.content_for :content do %>
+      <%= form.label :content %>
+      <%= form.rich_text_area :content %>
+
+      <%= form.button %>
+    <% end %>
+  <% end %>
+<% end %>

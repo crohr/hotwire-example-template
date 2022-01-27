@@ -30,4 +30,12 @@
 # available at https://guides.rubyonrails.org/i18n.html.
 
 en:
-  hello: "Hello world"
+  activerecord:
+    attributes:
+      article:
+        category_ids: Categories
+
+  helpers:
+    submit:
+      article:
+        update: Save
